@@ -933,7 +933,7 @@ class SargeWindowsTest(unittest.TestCase):  # pragma: no cover
                                '{1E460BD7-F1C3-4B2E-88BF-4E770A288AF5}'])
 
 
-     def test_find_command_no_quotes(self):
+    def test_find_command_no_quotes(self):
         skip_missing_association('.blg')
         ftype = 'Diagnostic.Perfmon.Document'
 
@@ -950,6 +950,33 @@ class SargeWindowsTest(unittest.TestCase):  # pragma: no cover
         self.assertIsNotNone(cmd)
         self.assertEqual(cmd[0], '%SystemRoot%\\system32\\perfmon')
         self.assertEqual(cmd[1:], ['/sys', '/open', 'helloblg.blg'])
+
+    def test_which_scr(self):
+        skip_missing_association('.scr')
+
+        with open('helloscr.scr', 'w') as f:
+            f.write('Invalid')
+
+        cmd = which('helloscr.scr')
+        self.assertEqual(cmd, '.\\helloscr.scr')
+        cmd = which('helloscr')
+        self.assertEqual(cmd, '.\\helloscr.SCR')
+
+        # This might be false on case sensitive file systems
+        self.assertTrue(os.path.exists('.\\helloscr.SCR'))
+
+    def test_run_found_command_scr(self):
+        skip_missing_association('.scr')
+
+        try:
+            shutil.copy(which('echo'), 'helloscr.scr')
+            cmd = find_command('helloscr')
+            self.assertIsNotNone(cmd)
+            p = capture_stdout('helloscr "Hello, world!"')
+            # /S should be added because the command is '%1 /S'
+            self.assertEqual(p.stdout.text.rstrip(), '/S Hello, world!')
+        finally:
+            os.remove('helloscr.scr')
 
     if os.path.exists('Hello.jar'):
         def test_find_command_jar(self):

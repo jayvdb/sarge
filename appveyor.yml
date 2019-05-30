@@ -59,7 +59,7 @@ cache:
 install:
   - echo %PathExt%
   # Add associations needed for the tests
-  - SET PATHEXT=%PATHEXT%;.PYW;.PL;.RB;.MSI;.HTA;.JAR;.BLG
+  - SET PATHEXT=%PATHEXT%;.PYW;.PL;.RB;.MSI;.HTA;.JAR;.BLG;.SCR
 
   # Ruby 2.4 contains different executables with different sets of extension
   # which can be used to test different scenarios:
