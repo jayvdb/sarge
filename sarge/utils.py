@@ -80,7 +80,7 @@ if sys.platform == 'win32':
     except ImportError:
         import _winreg as winreg
 
-    COMMAND_RE = re.compile(r'^"([^"]*)" "%1" %\*$')
+    COMMAND_RE = re.compile(r'^(.*) *"%[1L]" %\*$')
 
     def find_command(cmd):
         """
@@ -109,6 +109,15 @@ if sys.platform == 'win32':
                 m = COMMAND_RE.match(s)
                 if m:
                     exe = m.groups()[0]
+                    if not exe:
+                        # Return which result
+                        return None, cmd
+                    if exe.startswith('"') and exe.endswith('"'):
+                        exe = exe.strip('"')
+                        if '"' in exe:
+                            raise RuntimeError('Not sure what to do with quotes')
+                        if ' ' in exe:
+                            raise RuntimeError('Not sure what to do with spaces')
                     result = exe, cmd
             except OSError:
                 raise
