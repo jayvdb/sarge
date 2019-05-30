@@ -82,6 +82,8 @@ if sys.platform == 'win32':
 
     COMMAND_RE = re.compile(r'^"([^"]*)" "%1" %\*$')
 
+    EXECUTABLE_EXTENSIONS = ('.bat', '.cmd', '.com', '.pif', '.exe')
+
     def find_command(cmd):
         """
         Convert a command into a script name, if possible, and find
@@ -99,6 +101,10 @@ if sys.platform == 'win32':
             if cmd.startswith('.\\'):
                 cmd = cmd[2:]
             _, extn = os.path.splitext(cmd)
+            # Special case extensions which have open command '"%[1L]" %*'
+            if extn and extn.lower() in EXECUTABLE_EXTENSIONS:
+                return None, cmd
+
             HKCR = winreg.HKEY_CLASSES_ROOT
             try:
                 ftype = winreg.QueryValue(HKCR, extn)
