@@ -1,0 +1,91 @@
+environment:
+  global:
+    PIP_CACHE_DIR: C:\pip_cache
+
+  matrix:
+    - PYTHON: "C:\\Python34"
+      PYTHON_VERSION: "3.4.x"
+      PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python35"
+      PYTHON_VERSION: "3.5.x"
+      PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python36"
+      PYTHON_VERSION: "3.6.x"
+      PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python37"
+      PYTHON_VERSION: "3.7.x"
+      PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python27"
+      PYTHON_VERSION: "2.7.x"
+      PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python34-x64"
+      PYTHON_VERSION: "3.4.x"
+      PYTHON_ARCH: "64"
+
+    - PYTHON: "C:\\Python35-x64"
+      PYTHON_VERSION: "3.5.x"
+      PYTHON_ARCH: "64"
+
+    - PYTHON: "C:\\Python36-x64"
+      PYTHON_VERSION: "3.6.x"
+      PYTHON_ARCH: "64"
+
+    - PYTHON: "C:\\Python37-x64"
+      PYTHON_VERSION: "3.7.x"
+      PYTHON_ARCH: "64"
+
+    - PYTHON: "C:\\Python27-x64"
+      PYTHON_VERSION: "2.7.x"
+      PYTHON_ARCH: "64"
+
+cache:
+  - "C:\\pip_cache"
+
+install:
+  - echo %PathExt%
+  # .pyw association needed for the tests
+  - SET PATHEXT=%PATHEXT%;.PYW
+  # Prepend msys with pacman to PATH.
+  - SET "PATH=C:\msys64\usr\bin;%PATH%"
+  - DIR C:\msys64\usr\bin\*iconv*.dll C:\msys64\usr\bin\*intl*.dll
+  # Prepend newly installed Python to the PATH of this build (this cannot be
+  # done from inside the powershell script as it would require to restart
+  # the parent CMD process).
+  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+
+  # Check that we have the expected version and architecture for Python
+  - python --version
+  - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
+
+  - reg query HKCR\.py /s
+  - reg query HKCR\Python.File /s
+
+  - reg query HKCR\.pyw /s
+  - reg query HKCR\Python.NoConFile /s
+
+  - reg query HKCR\.bat /s
+  - reg query HKCR\batfile /s
+
+  - reg query HKCR\.cmd /s
+  - reg query HKCR\cmdfile /s
+
+  - reg query HKCR\.com /s
+  - reg query HKCR\comfile /s
+
+  - reg query HKCR\.pif /s
+  - reg query HKCR\piffile /s
+
+  - python -m pip install pytest pytest-timeout .
+
+build: false  # Not a C# project, build stuff at the test step instead.
+
+test_script:
+  - python -m pytest -vv --timeout=10 test_sarge.py
+
+matrix:
+  fast_finish: true

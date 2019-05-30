@@ -99,9 +99,13 @@ if sys.platform == 'win32':
             if cmd.startswith('.\\'):
                 cmd = cmd[2:]
             _, extn = os.path.splitext(cmd)
+            # Special case extensions which have open command '"%[1L]" %*'
+            if extn.lower() in ('bat', 'cmd', 'com', 'pif'):
+                return None, cmd
+
             HKCR = winreg.HKEY_CLASSES_ROOT
             try:
-                ftype = winreg.QueryValue(HKCR, extn)
+                ftype = winreg.QueryValue(HKCR, extn.lower())
                 path = os.path.join(ftype, 'shell', 'open', 'command')
                 s = winreg.QueryValue(HKCR, path)
                 exe = None
