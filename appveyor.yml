@@ -1,0 +1,123 @@
+environment:
+  global:
+    PIP_CACHE_DIR: C:\pip_cache
+
+  matrix:
+    - PYTHON: "C:\\Python34"
+      PYTHON_VERSION: "3.4.x"
+      PYTHON_ARCH: "32"
+      WINDOWS_SDK_VERSION: v7.1
+
+    - PYTHON: "C:\\Python35"
+      PYTHON_VERSION: "3.5.x"
+      PYTHON_ARCH: "32"
+      WINDOWS_SDK_VERSION: v7.1
+
+    - PYTHON: "C:\\Python36"
+      PYTHON_VERSION: "3.6.x"
+      PYTHON_ARCH: "32"
+      WINDOWS_SDK_VERSION: v7.1
+
+    - PYTHON: "C:\\Python37"
+      PYTHON_VERSION: "3.7.x"
+      PYTHON_ARCH: "32"
+      WINDOWS_SDK_VERSION: v7.1
+
+    - PYTHON: "C:\\Python27"
+      PYTHON_VERSION: "2.7.x"
+      PYTHON_ARCH: "32"
+      WINDOWS_SDK_VERSION: v7.0
+
+    - PYTHON: "C:\\Python34-x64"
+      PYTHON_VERSION: "3.4.x"
+      PYTHON_ARCH: "64"
+      WINDOWS_SDK_VERSION: v7.1
+
+    - PYTHON: "C:\\Python35-x64"
+      PYTHON_VERSION: "3.5.x"
+      PYTHON_ARCH: "64"
+      WINDOWS_SDK_VERSION: v7.1
+
+    - PYTHON: "C:\\Python36-x64"
+      PYTHON_VERSION: "3.6.x"
+      PYTHON_ARCH: "64"
+      WINDOWS_SDK_VERSION: v7.1
+
+    - PYTHON: "C:\\Python37-x64"
+      PYTHON_VERSION: "3.7.x"
+      PYTHON_ARCH: "64"
+      WINDOWS_SDK_VERSION: v7.1
+
+    - PYTHON: "C:\\Python27-x64"
+      PYTHON_VERSION: "2.7.x"
+      PYTHON_ARCH: "64"
+      WINDOWS_SDK_VERSION: v7.0
+
+cache:
+  - "C:\\pip_cache"
+
+install:
+  - echo %PathExt%
+  # Add associations needed for the tests
+  - SET PATHEXT=%PATHEXT%;.PYW
+
+  # Ruby 2.4 contains different executables with different sets of extension
+  # which can be used to test different scenarios:
+  # - gem, gem.bat, gem.cmd
+  # - bundler, bundler.bat
+  # - rdoc, rdoc.cmd
+  - DIR C:\Ruby24\bin
+  - SET "PATH=C:\Ruby24\bin;%PATH%"
+  - which rdoc
+
+  # Prepend msys with pacman to PATH.
+  - SET "PATH=C:\msys64\usr\bin;%PATH%"
+  - DIR C:\msys64\usr\bin\*iconv*.dll C:\msys64\usr\bin\*intl*.dll
+  # Prepend newly installed Python to the PATH of this build (this cannot be
+  # done from inside the powershell script as it would require to restart
+  # the parent CMD process).
+  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+  - SET WIN_SDK_ROOT=C:\Program Files\Microsoft SDKs\Windows
+  - SET "PATH=%PATH%;%WIN_SDK_ROOT%\%WINDOWS_SDK_VERSION%\Bin\"
+  - echo %PATH%
+  - dir "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv*"
+  # `which setenv.cmd` and `which setenv` both fail, probably because the
+  # file is called SetEnv.Cmd
+
+  # Check that we have the expected version and architecture for Python
+  - python --version
+  - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
+
+  - reg query HKCR\.py /s
+  - reg query HKCR\Python.File /s
+
+  - reg query HKCR\.pyw /s
+  - reg query HKCR\Python.NoConFile /s
+
+  - reg query HKCR\.bat /s
+  - reg query HKCR\batfile /s
+
+  - reg query HKCR\.cmd /s
+  - reg query HKCR\cmdfile /s
+
+  - reg query HKCR\.com /s
+  - reg query HKCR\comfile /s
+
+  - reg query HKCR\.pif /s
+  - reg query HKCR\piffile /s
+
+  - python -m pip install pytest pytest-timeout pytest-error-for-skips .
+
+build: false  # Not a C# project, build stuff at the test step instead.
+
+test_script:
+  - 'python -m pytest -vv --error-for-skips --timeout=10 test_sarge.py
+     -k "not SargeWindowsTest and
+         not test_pipeline_no_input_pipe_stderr and
+         not test_pipeline_no_input_redirect_stderr and
+         not test_pipeline_no_input_stderr and
+         not test_quote_with_shell
+         "'
+
+matrix:
+  fast_finish: true

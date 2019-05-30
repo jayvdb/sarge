@@ -704,25 +704,6 @@ class SargeTest(unittest.TestCase):
         finally:
             shutil.rmtree(workdir)
 
-    if sys.platform == 'win32':  #pragma: no cover
-        pyrunner_re = re.compile(r'.*py.*\.exe', re.I)
-        pywrunner_re = re.compile(r'.*py.*w\.exe', re.I)
-
-        def test_find_command(self):
-            cmd = find_command('dummy.py')
-            self.assertTrue(cmd is None or pyrunner_re.match(cmd))
-            cmd = find_command('dummy.pyw')
-            self.assertTrue(cmd is None or pywrunner_re.match(cmd))
-
-        def test_run_found_command(self):
-            with open('hello.py', 'w') as f:
-                f.write('print("Hello, world!")')
-            cmd = find_command('hello')
-            if not cmd:
-                raise unittest.SkipTest('.py not in PATHEXT or not registered')
-            p = capture_stdout('hello')
-            self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
-
     def test_feeder(self):
         feeder = Feeder()
         p = capture_stdout([sys.executable, 'echoer.py'], input=feeder,
@@ -748,6 +729,228 @@ class SargeTest(unittest.TestCase):
             feeder.close()
         self.assertEqual(p.stdout.text.splitlines(),
                          ['hello hello', 'goodbye goodbye'])
+
+
+executable_extensions = (
+    os.environ.get('PATHEXT', '').lower().split(os.path.pathsep)
+)
+
+
+def skip_missing_association(extn):  # pragma: no cover
+    if extn not in executable_extensions:
+        raise unittest.SkipTest('{} not in PATHEXT'.format(extn))
+    HKCR = winreg.HKEY_CLASSES_ROOT
+    try:
+        ftype = winreg.QueryValue(HKCR, extn)
+        path = os.path.join(ftype, 'shell', 'open', 'command')
+        key = winreg.OpenKey(HKCR, path)
+        exe, _ = winreg.QueryValueEx(key, None)
+    except OSError:
+        raise unittest.SkipTest(
+            '{} has associated open command'.format(extn))
+
+
+@unittest.skipIf(sys.platform != 'win32', 'Windows tests')
+class SargeWindowsTest(unittest.TestCase):  # pragma: no cover
+
+    pyrunner_re = re.compile(r'.*py.*\.exe', re.I)
+    pywrunner_re = re.compile(r'.*py.*w\.exe', re.I)
+
+    sdk_version = os.environ.get('WINDOWS_SDK_VERSION', '')
+    sdk_path = (
+        'C:\\Program Files\\Microsoft SDKs\\Windows\\{}\\Bin\\setenv.CMD'
+        ''.format(sdk_version)
+    )
+    have_ruby24 = 'C:\\Ruby24\\bin' in os.environ.get('PATH', '')
+
+    def test_which_bat(self):
+        skip_missing_association('.bat')
+
+        with open('hellobat.bat', 'w') as f:
+            f.write('@echo Hello World')
+        with open('hellobat.cmd', 'w') as f:
+            f.write('@echo Hello World')
+
+        cmd = which('hellobat.bat')
+        self.assertEqual(cmd, '.\\hellobat.bat')
+
+        cmd = which('.\\hellobat.bat')
+        self.assertEqual(cmd, '.\\hellobat.bat')
+        cmd = which('.\\hellobat')
+        self.assertIsNone(cmd)
+        abspath = os.path.abspath('.\\hellobat.bat')
+        cmd = which(abspath)
+        self.assertTrue(abspath)
+
+        # This might be false on case sensitive file systems
+        self.assertTrue(os.path.exists('.\\hellobat.BAT'))
+
+    def test_which_cmd(self):
+        skip_missing_association('.cmd')
+
+        with open('hellocmd.cmd', 'w') as f:
+            f.write('@echo Hello World')
+
+        cmd = which('hellocmd.cmd')
+        self.assertIsNotNone(cmd, '.cmd not in PATHEXT or not registered')
+        self.assertEqual(cmd, '.\\hellocmd.cmd')
+        cmd = which('hellocmd')
+        self.assertEqual(cmd, '.\\hellocmd.CMD')
+
+        # This might be false on case sensitive file systems
+        self.assertTrue(os.path.exists('.\\hellobat.CMD'))
+
+    def test_which_bat_missing(self):
+        skip_missing_association('.bat')
+
+        cmd = which('.\\missing.bat')
+        self.assertIsNone(cmd)
+        cmd = which('missing.bat')
+        self.assertIsNone(cmd)
+        abspath = os.path.abspath('.\\missing.bat')
+        cmd = which(abspath)
+        self.assertTrue(abspath)
+
+    def test_which_python(self):
+        skip_missing_association('.py')
+        skip_missing_association('.pyw')
+
+        with open('hellopy.py', 'w') as f:
+            f.write('print("Hello, world!")')
+        with open('hellopy.pyw', 'w') as f:
+            f.write('print("Hello, world!")')
+
+        cmd = which('hellopy.py')
+        self.assertEqual(cmd, '.\\hellopy.py')
+        cmd = which('hellopy')
+        self.assertEqual(cmd, '.\\hellopy.PY')
+
+        # This might be false on case sensitive file systems
+        self.assertTrue(os.path.exists('.\\hellopy.PY'))
+
+        cmd = which('hellopy.pyw')
+        self.assertEqual(cmd, '.\\hellopy.pyw')
+
+    def test_run_which_python_noext(self):
+        skip_missing_association('.py')
+
+        with open('hellopy.py', 'w') as f:
+            f.write('print("Hello, world!")')
+
+        cmd = which('hellopy')
+        self.assertEqual(cmd, '.\\hellopy.PY')
+
+        p = capture_stdout('hellopy')
+        self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
+
+    def test_run_which_python(self):
+        skip_missing_association('.py')
+
+        with open('hellopy.py', 'w') as f:
+            f.write('print("Hello, world!")')
+
+        cmd = which('hellopy.py')
+        self.assertEqual(cmd, '.\\hellopy.py')
+
+        p = capture_stdout(cmd)
+        self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
+
+    def test_find_command_py(self):
+        skip_missing_association('.py')
+        skip_missing_association('.pyw')
+
+        with open('hellopy.py', 'w') as f:
+            f.write('print("Hello, world!")')
+        with open('hellopy.pyw', 'w') as f:
+            f.write('print("Hello, world!")')
+        cmd = find_command('hellopy.py')
+        self.assertIsNotNone(cmd)
+        self.assertTrue(self.pyrunner_re.match(str(cmd)))
+        cmd = find_command('hellopy.pyw')
+        self.assertIsNotNone(cmd)
+        self.assertTrue(self.pywrunner_re.match(str(cmd)))
+
+    def test_run_found_command_py(self):
+        skip_missing_association('.py')
+
+        with open('hellopy.py', 'w') as f:
+            f.write('print("Hello, world!")')
+        cmd = find_command('hellopy')
+        self.assertIsNotNone(cmd)
+        p = capture_stdout('hellopy')
+        self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
+
+    def test_run_found_command_bat(self):
+        skip_missing_association('.bat')
+
+        with open('hellobat.bat', 'w') as f:
+            f.write('@echo Hello World')
+        cmd = find_command('hellobat')
+        self.assertIsNotNone(cmd)
+        p = capture_stdout('hellobat')
+        self.assertEqual(p.stdout.text.rstrip(), 'Hello World')
+
+    def test_run_found_command_cmd(self):
+        skip_missing_association('.cmd')
+
+        with open('hellocmd.cmd', 'w') as f:
+            f.write('@echo Hello World')
+        cmd = find_command('hellocmd')
+        self.assertIsNotNone(cmd)
+        p = capture_stdout('hellocmd')
+        self.assertEqual(p.stdout.text.rstrip(), 'Hello World')
+
+    if sdk_version:
+        # Tests including spaces in the file path
+        def test_find_command_cmd_msvc_setenv(self):
+            skip_missing_association('.cmd')
+
+            cmd = find_command('setenv')
+            self.assertIsNotNone(cmd)
+            self.assertEqual(cmd, (None, self.sdk_path))
+
+        def test_run_found_command_cmd_msvc_setenv(self):
+            skip_missing_association('.cmd')
+
+            p = capture_stdout('SetEnv')
+            self.assertIsNotNone(p)
+            self.assertIn('Setting SDK environment', p.stdout.text)
+
+    if have_ruby24:
+        def test_find_command_bat_ruby_gem(self):
+            skip_missing_association('.bat')
+            cmd = find_command('gem')
+            self.assertEqual(cmd, (None, 'C:\\Ruby24\\bin\\gem.BAT'))
+
+        def test_find_command_cmd_ruby_rdoc(self):
+            skip_missing_association('.cmd')
+            cmd = find_command('rdoc')
+            self.assertEqual(cmd, (None, 'C:\\Ruby24\\bin\\rdoc.CMD'))
+
+        def test_find_command_bat_ruby_bundler(self):
+            skip_missing_association('.bat')
+            cmd = find_command('bundler')
+            self.assertEqual(cmd, (None, 'C:\\Ruby24\\bin\\bundler.BAT'))
+
+        def test_run_found_command_bat_ruby_gem(self):
+            skip_missing_association('.bat')
+            p = capture_stdout('gem list -l rdoc')
+            self.assertIsNotNone(p)
+            self.assertIn('rdoc', p.stdout.text)
+            self.assertIn('default:', p.stdout.text)
+
+        def test_run_found_command_cmd_ruby_rdoc(self):
+            skip_missing_association('.cmd')
+            p = capture_stdout('rdoc C:\\Ruby24\\bin\\rdoc')
+            self.assertIsNotNone(p)
+            self.assertIn('rdoc', p.stdout.text)
+            self.assertIn('100%', p.stdout.text)
+
+        def test_run_found_command_bat_ruby_bundler(self):
+            skip_missing_association('.bat')
+            p = capture_stdout('bundler help')
+            self.assertIsNotNone(p)
+            self.assertIn('Ruby Dependency Management', p.stdout.text)
 
 
 if __name__ == '__main__':  #pragma: no cover
