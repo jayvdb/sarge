@@ -110,5 +110,5 @@ if sys.platform == 'win32':
                     exe = m.groups()[0]
                     result = exe, cmd
             except OSError:
-                pass
+                raise
         return result
