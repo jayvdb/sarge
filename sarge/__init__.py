@@ -931,15 +931,7 @@ class CommandLineParser(object):
             if d:
                 raise ValueError('semantics: can only redirect stdout and '
                                  'stderr, not %s' % list(d.keys()))
-        if sys.platform == 'win32':  #pragma: no cover
-            from .utils import find_command
 
-            cmd = find_command(node.command[0])
-            if cmd:
-                exe, cmd = cmd
-                node.command[0] = cmd
-                if exe:
-                    node.command.insert(0, exe)
         return node
 
     def parse_command_part(self):
