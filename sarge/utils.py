@@ -80,7 +80,8 @@ if sys.platform == 'win32':
     except ImportError:
         import _winreg as winreg
 
-    COMMAND_RE = re.compile(r'^"([^"]*)" "%1" %\*$')
+    # See https://superuser.com/q/136838 for available placeholders
+    COMMAND_RE = re.compile(r'^"?([^"]*)"? *"%[01Ll]" %\*$')
 
     def find_command(cmd):
         """
@@ -113,6 +114,9 @@ if sys.platform == 'win32':
                 m = COMMAND_RE.match(s)
                 if m:
                     exe = m.groups()[0]
+                    if not exe:
+                        # Return which result
+                        return None, cmd
                     result = exe, cmd
             except OSError:
                 pass
