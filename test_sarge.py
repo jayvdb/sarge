@@ -16,6 +16,7 @@ import sys
 import tempfile
 import time
 import unittest
+import warnings
 
 from sarge import (shell_quote, Capture, Command, CommandLineParser, Pipeline,
                    shell_format, run, parse_command_line, capture_stdout,
@@ -25,37 +26,76 @@ from sarge.shlext import shell_shlex
 from stack_tracer import start_trace, stop_trace
 
 if sys.platform == 'win32':  #pragma: no cover
+    import glob
+    import textwrap
+
     from sarge.utils import find_command
 
 TRACE_THREADS = sys.platform not in ('cli',)    # debugging only
 
 PY3 = sys.version_info[0] >= 3
 
-if os.name == 'nt':  #pragma: no cover
-    def found_file(fn):
-        if os.path.exists(fn):
-            return True
-        for d in os.environ['PATH'].split(os.pathsep):
-            p = os.path.join(d, fn)
-            if os.path.exists(p):
-                return True
-        return False
 
-    FILES = ('libiconv2.dll', 'libintl3.dll', 'cat.exe', 'echo.exe',
-             'tee.exe', 'false.exe', 'true.exe', 'sleep.exe', 'touch.exe')
-    for fn in FILES:
-        if not found_file(fn):
-            list = '%s and %s' % (', '.join(FILES[:-1]), FILES[-1])
-            raise ImportError('To run these tests on Windows, '
-                              'you need the GnuWin32 coreutils package. This '
-                              'appears not to be installed correctly, '
-                              'as the file %r does not appear to be in the '
-                              'current directory.\nSee http://gnuwin32'
-                              '.sourceforge.net/packages/coreutils.htm for '
-                              'download details. Once downloaded and '
-                              'installed, you need to copy %s to '
-                              'the test directory or have the directory they'
-                              ' were installed to on the PATH.' % (fn, list))
+def found_file(fn, locations):
+    if os.path.exists(fn):
+        return '.'
+    for d in locations:
+        p = os.path.join(d, fn)
+        if os.path.exists(p):
+            return d
+    return None
+
+
+paths = ['.', ] + os.environ['PATH'].split(os.pathsep)
+
+BINARIES = (
+    'cat', 'echo', 'false', 'sleep', 'tee', 'touch', 'true',
+)
+if os.name == 'nt':  # pragma: no cover
+    BINARIES = [exe + '.exe' for exe in BINARIES]
+
+locations = dict([(exe, found_file(exe, paths))
+                  for exe in BINARIES])
+missing = [exe for exe, path in locations.items() if not path]
+if missing:
+    exe_list = '%s and %s' % (', '.join(BINARIES[:-1]), BINARIES[-1])
+    if set(missing) == set(BINARIES):
+        missing_msg = 'coreutils binaries %s not found.' % exe_list
+    else:
+        missing_list = '%s and %s' % (', '.join(missing[:-1]), missing[-1])
+        missing_msg = 'coreutils binaries %s are missing.' % missing_list
+    if os.name == 'nt':  # pragma: no cover
+        gnuwin32_url = 'http://gnuwin32.sourceforge.net/packages/coreutils.htm'
+        raise ImportError(textwrap.dedent("""\
+            {}
+            To run these tests on Windows, you need those executables
+            in the PATH or in the current directory.
+            This appears not to be installed correctly.
+            They are included in msys2 at https://www.msys2.org/ .
+            Alternatively older versions can be fetched from GnuWin32 at {}
+            and copied into the test directory.""".format(missing_msg,
+                                                          gnuwin32_url)))
+    else:
+        raise ImportError(missing_msg)
+
+if os.name == 'nt':
+    locations = set(locations.values())
+    if len(locations) > 1:
+        raise ImportError(
+            'coreutils binaries {} found in multiple path locations {}'
+            ''.format(BINARIES, list(locations)))
+
+    location = locations.pop()
+    location = location.replace('bin', 'lib')
+    for lib in ('iconv', 'intl'):
+        # msys dlls are prefixed with `msys-` instead of `lib`,
+        # and have different so versions than GnuWin32
+        pattern = os.path.join(location, '*' + lib + '*.dll')
+        matches = glob.glob(pattern)
+        if not matches:
+            warnings.warn(
+                'coreutils dependency {} not found beside binaries in {}'
+                ''.format(pattern, location))
 
 logger = logging.getLogger(__name__)
 
