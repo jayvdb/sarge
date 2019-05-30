@@ -656,6 +656,8 @@ class Command(object):
             except OSError as e:
                 if e.errno == errno.ENOENT:
                     raise ValueError('Command not found: %s' % self.args[0])
+                logger.exception('Popen call failed: OSError: %s' % e)
+                raise
             except Exception as e:  #pragma: no cover
                 logger.exception('Popen call failed: %s: %s', type(e), e)
                 raise
