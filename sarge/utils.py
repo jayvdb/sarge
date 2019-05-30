@@ -100,7 +100,7 @@ if sys.platform == 'win32':
                 cmd = cmd[2:]
             _, extn = os.path.splitext(cmd)
             # Special case extensions which have open command '"%[1L]" %*'
-            if extn.lower() in ('bat', 'cmd', 'com', 'pif'):
+            if extn and extn.lower() in ('.bat', '.cmd', '.com', '.pif'):
                 return None, cmd
 
             HKCR = winreg.HKEY_CLASSES_ROOT

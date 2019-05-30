@@ -6,42 +6,52 @@ environment:
     - PYTHON: "C:\\Python34"
       PYTHON_VERSION: "3.4.x"
       PYTHON_ARCH: "32"
+      WINDOWS_SDK_VERSION: v7.1
 
     - PYTHON: "C:\\Python35"
       PYTHON_VERSION: "3.5.x"
       PYTHON_ARCH: "32"
+      WINDOWS_SDK_VERSION: v7.1
 
     - PYTHON: "C:\\Python36"
       PYTHON_VERSION: "3.6.x"
       PYTHON_ARCH: "32"
+      WINDOWS_SDK_VERSION: v7.1
 
     - PYTHON: "C:\\Python37"
       PYTHON_VERSION: "3.7.x"
       PYTHON_ARCH: "32"
+      WINDOWS_SDK_VERSION: v7.1
 
     - PYTHON: "C:\\Python27"
       PYTHON_VERSION: "2.7.x"
       PYTHON_ARCH: "32"
+      WINDOWS_SDK_VERSION: v7.0
 
     - PYTHON: "C:\\Python34-x64"
       PYTHON_VERSION: "3.4.x"
       PYTHON_ARCH: "64"
+      WINDOWS_SDK_VERSION: v7.1
 
     - PYTHON: "C:\\Python35-x64"
       PYTHON_VERSION: "3.5.x"
       PYTHON_ARCH: "64"
+      WINDOWS_SDK_VERSION: v7.1
 
     - PYTHON: "C:\\Python36-x64"
       PYTHON_VERSION: "3.6.x"
       PYTHON_ARCH: "64"
+      WINDOWS_SDK_VERSION: v7.1
 
     - PYTHON: "C:\\Python37-x64"
       PYTHON_VERSION: "3.7.x"
       PYTHON_ARCH: "64"
+      WINDOWS_SDK_VERSION: v7.1
 
     - PYTHON: "C:\\Python27-x64"
       PYTHON_VERSION: "2.7.x"
       PYTHON_ARCH: "64"
+      WINDOWS_SDK_VERSION: v7.0
 
 cache:
   - "C:\\pip_cache"
@@ -50,6 +60,16 @@ install:
   - echo %PathExt%
   # .pyw association needed for the tests
   - SET PATHEXT=%PATHEXT%;.PYW
+
+  # Ruby 2.4 contains different executables with different sets of extension
+  # which can be used to test different scenarios:
+  # - gem, gem.bat, gem.cmd
+  # - bundler, bundler.bat
+  # - rdoc, rdoc.cmd
+  - DIR C:\Ruby24\bin
+  - SET "PATH=C:\Ruby24\bin;%PATH%"
+  - which rdoc
+
   # Prepend msys with pacman to PATH.
   - SET "PATH=C:\msys64\usr\bin;%PATH%"
   - DIR C:\msys64\usr\bin\*iconv*.dll C:\msys64\usr\bin\*intl*.dll
@@ -57,6 +77,12 @@ install:
   # done from inside the powershell script as it would require to restart
   # the parent CMD process).
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+  - SET WIN_SDK_ROOT=C:\Program Files\Microsoft SDKs\Windows
+  - SET "PATH=%PATH%;%WIN_SDK_ROOT%\%WINDOWS_SDK_VERSION%\Bin\"
+  - echo %PATH%
+  - dir "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv*"
+  # `which setenv.cmd` and `which setenv` both fail, probably because the
+  # file is called SetEnv.Cmd
 
   # Check that we have the expected version and architecture for Python
   - python --version

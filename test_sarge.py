@@ -794,6 +794,36 @@ class SargeTest(unittest.TestCase):
                 self.assertIsNotNone(p)
                 self.assertIn('Setting SDK environment', p.stdout.text)
 
+        if 'C:\\Ruby24' in os.environ['PATH']:
+            def test_find_command_ruby_gem(self):
+                cmd = find_command('gem')
+                self.assertEqual(cmd, (None, 'C:\\Ruby24\\bin\\gem.BAT'))
+
+            def test_find_command_ruby_rdoc(self):
+                cmd = find_command('rdoc')
+                self.assertEqual(cmd, (None, 'C:\\Ruby24\\bin\\rdoc.CMD'))
+
+            def test_find_command_ruby_bundler(self):
+                cmd = find_command('bundler')
+                self.assertEqual(cmd, (None, 'C:\\Ruby24\\bin\\bundler.BAT'))
+
+            def test_run_found_command_ruby_gem(self):
+                p = capture_stdout('gem list -l rdoc')
+                self.assertIsNotNone(p)
+                self.assertIn('rdoc', p.stdout.text)
+                self.assertIn('default:', p.stdout.text)
+
+            def test_run_found_command_ruby_rdoc(self):
+                p = capture_stdout('rdoc C:\\Ruby24\\bin\\rdoc')
+                self.assertIsNotNone(p)
+                self.assertIn('rdoc', p.stdout.text)
+                self.assertIn('100%', p.stdout.text)
+
+            def test_run_found_command_ruby_bundler(self):
+                p = capture_stdout('bundler help')
+                self.assertIsNotNone(p)
+                self.assertIn('Ruby Dependency Management', p.stdout.text)
+
     def test_feeder(self):
         feeder = Feeder()
         p = capture_stdout([sys.executable, 'echoer.py'], input=feeder,
