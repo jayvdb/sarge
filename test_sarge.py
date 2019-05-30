@@ -25,37 +25,71 @@ from sarge.shlext import shell_shlex
 from stack_tracer import start_trace, stop_trace
 
 if sys.platform == 'win32':  #pragma: no cover
-    from sarge.utils import find_command
+    from sarge.utils import which, find_command
 
 TRACE_THREADS = sys.platform not in ('cli',)    # debugging only
 
 PY3 = sys.version_info[0] >= 3
 
-if os.name == 'nt':  #pragma: no cover
-    def found_file(fn):
-        if os.path.exists(fn):
-            return True
-        for d in os.environ['PATH'].split(os.pathsep):
-            p = os.path.join(d, fn)
-            if os.path.exists(p):
-                return True
-        return False
+pyrunner_re = re.compile(r'.*py.*\.exe', re.I)
+pywrunner_re = re.compile(r'.*py.*w\.exe', re.I)
 
-    FILES = ('libiconv2.dll', 'libintl3.dll', 'cat.exe', 'echo.exe',
-             'tee.exe', 'false.exe', 'true.exe', 'sleep.exe', 'touch.exe')
-    for fn in FILES:
-        if not found_file(fn):
-            list = '%s and %s' % (', '.join(FILES[:-1]), FILES[-1])
-            raise ImportError('To run these tests on Windows, '
-                              'you need the GnuWin32 coreutils package. This '
-                              'appears not to be installed correctly, '
-                              'as the file %r does not appear to be in the '
-                              'current directory.\nSee http://gnuwin32'
-                              '.sourceforge.net/packages/coreutils.htm for '
-                              'download details. Once downloaded and '
-                              'installed, you need to copy %s to '
-                              'the test directory or have the directory they'
-                              ' were installed to on the PATH.' % (fn, list))
+def found_file(fn, locations):
+    if os.path.exists(fn):
+        return '.'
+    for d in locations:
+        p = os.path.join(d, fn)
+        if os.path.exists(p):
+            return d
+    return None
+
+paths = ['.', ] + os.environ['PATH'].split(os.pathsep)
+
+BINARIES = (
+    'cat', 'echo', 'false', 'sleep', 'tee', 'touch', 'true',
+)
+if os.name == 'nt':  #pragma: no cover
+    BINARIES = [exe + '.exe' for exe in BINARIES]
+
+locations = dict([(exe, found_file(exe, paths))
+                  for exe in BINARIES])
+missing = [exe for exe, path in locations.items() if not path]
+if missing:
+    exe_list = '%s and %s' % (', '.join(BINARIES[:-1]), BINARIES[-1])
+    missing_list = '%s and %s' % (', '.join(missing[:-1]), missing[-1])
+    if os.name == 'nt':  #pragma: no cover
+        import textwrap
+        raise ImportError(textwrap.dedent("""\
+            To run these tests on Windows, you need the GnuWin32 coreutils package.
+            This appears not to be installed correctly, as the files %s do not appear to be in the current directory.
+            See http://gnuwin32.sourceforge.net/packages/coreutils.htm for download details.
+            Once downloaded and installed, you need to copy %s to the test directory or have the directory they were installed to on the PATH.""" % (missing_list, exe_list)))
+    else:
+        raise ImportError(
+           'coreutils binaries %s not found' % missing_list)
+
+locations = set(locations.values())
+if len(locations) > 1:
+    raise ImportError(
+        'coreutils binaries %r found spread across multiple path locations %r' %
+        (BINARIES, list(locations)))
+
+location = locations.pop()
+if os.name != 'nt':
+    location = location.replace('bin', 'lib')
+import glob
+for lib in ('iconv', 'intl'):
+    if os.name == 'nt':
+        # msys dlls are prefixed with `msys-` instead of `lib`,
+        # and have different so versions than GnuWin32
+        pattern = os.path.join(location, '*' + lib + '*.dll')
+    else:
+        pattern = os.path.join(location, 'lib' + lib + '*.so')
+    matches = glob.glob(pattern)
+    if not matches:
+        import warnings
+        warnings.warn(
+           'coreutils dependency %s not found in %s' % (pattern, location))
 
 logger = logging.getLogger(__name__)
 
@@ -665,21 +699,67 @@ class SargeTest(unittest.TestCase):
             shutil.rmtree(workdir)
 
     if sys.platform == 'win32':  #pragma: no cover
-        pyrunner_re = re.compile(r'.*py.*\.exe', re.I)
-        pywrunner_re = re.compile(r'.*py.*w\.exe', re.I)
+
+        def test_which(self):
+            with open('dummy.py', 'w') as f:
+                f.write('print("Hello, world!")')
+            with open('dummy.pyw', 'w') as f:
+                f.write('print("Hello, world!")')
+
+            cmd = which('dummy.py')
+            self.assertIsNotNone(cmd, '.py not in PATHEXT or not registered')
+            self.assertEqual(cmd, '.\\dummy.py')
+            cmd = which('dummy')
+            self.assertEqual(cmd, '.\\dummy.PY')
+
+            # This will be false on case sensitive file systems
+            self.assertTrue(os.path.exists('.\\dummy.PY'))
+
+            cmd = which('dummy.pyw')
+            self.assertIsNotNone(cmd, '.pyw not in PATHEXT or not registered')
+            self.assertEqual(cmd, '.\\dummy.pyw')
+
+        def test_run_which_noext(self):
+            with open('hello.py', 'w') as f:
+                f.write('print("Hello, world!")')
+
+            cmd = which('hello')
+            if not cmd:
+                raise unittest.SkipTest('.py not in PATHEXT or not registered')
+            self.assertEqual(cmd, '.\\hello.PY')
+
+            p = capture_stdout('hello')
+            self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
+
+        def test_run_which_py(self):
+            with open('hello.py', 'w') as f:
+                f.write('print("Hello, world!")')
+
+            cmd = which('hello.py')
+            if not cmd:
+                raise unittest.SkipTest('.py not in PATHEXT or not registered')
+            self.assertEqual(cmd, '.\\hello.py')
+
+            p = capture_stdout(cmd)
+            self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
 
         def test_find_command(self):
+            with open('dummy.py', 'w') as f:
+                f.write('print("Hello, world!")')
+            with open('dummy.pyw', 'w') as f:
+                f.write('print("Hello, world!")')
             cmd = find_command('dummy.py')
-            self.assertTrue(cmd is None or pyrunner_re.match(cmd))
+            self.assertIsNotNone(cmd)
+            self.assertTrue(pyrunner_re.match(str(cmd)))
             cmd = find_command('dummy.pyw')
-            self.assertTrue(cmd is None or pywrunner_re.match(cmd))
+            self.assertIsNotNone(cmd)
+            self.assertTrue(pywrunner_re.match(str(cmd)))
 
         def test_run_found_command(self):
             with open('hello.py', 'w') as f:
                 f.write('print("Hello, world!")')
             cmd = find_command('hello')
-            if not cmd:
-                raise unittest.SkipTest('.py not in PATHEXT or not registered')
+            self.assertIsNotNone(cmd)
             p = capture_stdout('hello')
             self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
 
