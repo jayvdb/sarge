@@ -104,7 +104,7 @@ if sys.platform == 'win32':
                 ftype = winreg.QueryValue(HKCR, extn)
                 path = os.path.join(ftype, 'shell', 'open', 'command')
                 print('opening', path)
-                s = winreg.QueryValue(HKCR, path)
+                s = winreg.QueryValue(HKCR, bytes(path))
                 print('s', s)
                 exe = None
                 m = COMMAND_RE.match(s)
