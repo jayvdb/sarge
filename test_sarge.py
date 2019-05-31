@@ -773,12 +773,28 @@ class SargeTest(unittest.TestCase):
             self.assertIsNotNone(cmd)
             self.assertTrue(pywrunner_re.match(str(cmd)))
 
-        def test_run_found_command(self):
+        def test_run_found_command_python(self):
             with open('hellopy.py', 'w') as f:
                 f.write('print("Hello, world!")')
             cmd = find_command('hellopy')
             self.assertIsNotNone(cmd)
             p = capture_stdout('hellopy')
+            self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
+
+        def test_run_found_command_ruby(self):
+            with open('hellorb.rb', 'w') as f:
+                f.write('puts "Hello, world!"')
+            cmd = find_command('hellorb')
+            self.assertIsNotNone(cmd)
+            p = capture_stdout('hellorb')
+            self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
+
+        def test_run_found_command_perl(self):
+            with open('hellopl.pl', 'w') as f:
+                f.write('use 5.010; say "Hello, world!";')
+            cmd = find_command('hellopl')
+            self.assertIsNotNone(cmd)
+            p = capture_stdout('hellopl')
             self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
 
         if os.environ.get('WINDOWS_SDK_VERSION', None):

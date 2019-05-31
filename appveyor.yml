@@ -58,8 +58,8 @@ cache:
 
 install:
   - echo %PathExt%
-  # .pyw association needed for the tests
-  - SET PATHEXT=%PATHEXT%;.PYW
+  # Add associations needed for the tests
+  - SET PATHEXT=%PATHEXT%;.PYW;.PL;.RB
 
   # Ruby 2.4 contains different executables with different sets of extension
   # which can be used to test different scenarios:
@@ -69,6 +69,12 @@ install:
   - DIR C:\Ruby24\bin
   - SET "PATH=C:\Ruby24\bin;%PATH%"
   - which rdoc
+
+  # Add missing .rb association
+  # https://github.com/appveyor/ci/issues/246 percent symbol need ps:
+  - ps: cmd /c ftype rubyfile=C:\Ruby24\bin\ruby.exe '"%L"' '%*'
+  - assoc .rb=rubyfile
+  - assoc .rb
 
   # Prepend msys with pacman to PATH.
   - SET "PATH=C:\msys64\usr\bin;%PATH%"
@@ -105,6 +111,12 @@ install:
 
   - reg query HKCR\.pif /s
   - reg query HKCR\piffile /s
+
+  - reg query HKCR\.rb /s
+  - reg query HKCR\rubyfile /s
+
+  - reg query HKCR\.pl /s
+  - reg query HKCR\Perl /s
 
   - python -m pip install pytest pytest-timeout .
 
