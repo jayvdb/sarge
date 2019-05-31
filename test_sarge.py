@@ -900,6 +900,26 @@ class SargeWindowsTest(unittest.TestCase):  # pragma: no cover
         p = capture_stdout('hellocmd')
         self.assertEqual(p.stdout.text.rstrip(), 'Hello World')
 
+    def test_run_found_command_ruby(self):
+        skip_missing_association('.rb')
+
+        with open('hellorb.rb', 'w') as f:
+            f.write('puts "Hello, world!"')
+        cmd = find_command('hellorb')
+        self.assertIsNotNone(cmd)
+        p = capture_stdout('hellorb')
+        self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
+
+    def test_run_found_command_perl(self):
+        skip_missing_association('.pl')
+
+        with open('hellopl.pl', 'w') as f:
+            f.write('use 5.010; say "Hello, world!";')
+        cmd = find_command('hellopl')
+        self.assertIsNotNone(cmd)
+        p = capture_stdout('hellopl')
+        self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
+
     if sdk_version:
         # Tests including spaces in the file path
         def test_find_command_cmd_msvc_setenv(self):
