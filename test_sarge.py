@@ -899,10 +899,12 @@ class SargeTest(unittest.TestCase):
         def test_find_command_all_extensions(self):
             from sarge.utils import winreg, COMMAND_RE
             HKCR = winreg.HKEY_CLASSES_ROOT
-            # Failures here could be due to bugs in the host registry
+            # Failures here are be due to bugs in the host registry
+            # https://github.com/appveyor/ci/issues/2955
             IGNORE_EXTENSIONS = (
-                '.wpa', '.dtproj', '.ispac',
-                '.SSISDeploymentManifest', '.tt', '.vdp', '.vdproj',
+                '.dtproj', '.ispac', '.tt',
+                '.SSISDeploymentManifest', '.vdp', '.vdproj',
+                '.wpa',
                 '.fs', '.fsscript', '.fsx',  '.fsi', '.fsproj',
             )
             def iter_extns():
@@ -928,15 +930,35 @@ class SargeTest(unittest.TestCase):
                 if extn in IGNORE_EXTENSIONS:
                     continue
                 ftype = winreg.QueryValue(HKCR, extn.lower())
+                if not ftype:
+                    try:
+                        key = winreg.OpenKey(HKCR, extn.lower())
+                    except OSError:
+                        print('extn {} is not found at {}'.format(extn, extn.lower()))
+                    try:
+                        key = winreg.OpenKey(HKCR, extn)
+                    except OSError:
+                        print('extn {} is not found'.format(extn))
+                        continue
+                    print('ftype for extn {} is missing'.format(extn))
+                    continue
+                if ' ' in ftype:
+                    print('spaces in {} ftype {}'.format(extn, ftype))
                 path = os.path.join(ftype, 'shell', 'open', 'command')
                 try:
                     key = winreg.OpenKey(HKCR, path)
                 except OSError:
+                    try:
+                        key = winreg.OpenKey(HKCR, ftype)
+                    except OSError:
+                        print('ftype is missing', extn, ftype)
+                        continue
+                    print('openkey failed', extn, path)
                     continue
                 try:
                     exe, _ = winreg.QueryValueEx(key, None)
                 except OSError:
-                    print('Unexpectedly missing value', path)
+                    print('Unexpectedly missing value', extn, path)
                     continue
                 if not exe:
                     if ftype in ('AnalysisServices.BIMFile', 'AnalysisServices.BISMProject'):
@@ -948,7 +970,7 @@ class SargeTest(unittest.TestCase):
                 elif '%0' not in exe and '%1' not in exe and '%L' not in exe and '%l' not in exe:
                     # Doesnt contain %0, %1 or %L, so not really an open command
                     continue
-                if exe in ('"%1" %*', '%1 %*', '"" "%1"'):
+                if exe in ('"%1" %*', '%1 %*'):
                     print('execute the file', extn, ftype, exe)
                     NO_EXE.append(extn)
                     continue
@@ -993,40 +1015,7 @@ class SargeTest(unittest.TestCase):
             # arbitary check to ensure some processing occurred
             self.assertGreater(count, 100)
             self.assertEqual(set(NO_EXE), set(['.bat', '.cmd', '.exe', '.com', '.pif']))
-            # self.assertTrue(False)
-
-        # .eml is Microsoft Email Message , which is missing
-
-        # .wpa is wpa.wpa_file
-        # .wpa C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\wpa.exe "%1" False C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\wpa.exe "%1" False
-        # s C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\wpa.exe "%1"
-        # expanded C:\Program
-        # expanded C:\Program.exe
-
-        # .xrm-ms "iexplore.exe" "%1" False "iexplore.exe" "%1" False
-        # ftype MSSppLicenseFile
-        # s "iexplore.exe" "%1"
-        # expanded iexplore.exe
-        # expanded None
-        # 'iexplore' is not recognized as an internal or external command,
-        # operable program or batch file.
-
-        # .dtproj "C:\Program Files (x86)\Microsoft Visual Studio 14.0\Common7\IDE\PrivateAssemblies\devenv.exe" "%L" False "C:\Program Files (x86)\Microsoft Visual Studio 14.0\Common7\IDE\PrivateAssemblies\devenv.exe" "%L" False
-        # The directory contains devenv.exe.config.tmp but not devenv.exe
-
-        # .ispac is IntegrationServices.ProjectDeploymentFile.130
-        # .ispac "C:\Program Files\Microsoft SQL Server\130\DTS\Binn\isdeploymentwizard.exe" /SourcePath:"%1" False "C:\Program Files\Microsoft SQL Server\130\DTS\Binn\isdeploymentwizard.exe" /SourcePath:"%1" False
-        # .SSISDeploymentManifest is IntegrationServices.DeploymentManifest.130
-        # .SSISDeploymentManifest "C:\Program Files\Microsoft SQL Server\130\DTS\Binn\dtsinstall.exe" "%1" False "C:\Program Files\Microsoft SQL Server\130\DTS\Binn\dtsinstall.exe" "%1" False
-        # Binn does exist, but isdeploymentwizard.exe and dtsinstall.exe are not there
-
-        # .vdp is (wix.AppIdName).vdp.12.0
-        # .vdp "C:\Program Files (x86)\Microsoft Visual Studio 12.0\Common7\IDE\VSLauncher.exe" "%1" False "C:\Program Files (x86)\Microsoft Visual Studio 12.0\Common7\IDE\VSLauncher.exe" "%1" False
-        # Directory exists; VSLauncher.exe is missing
-        # .vdproj is (wix.AppIdName).Launcher.vdproj.14.0
-        # .vdproj "C:\Program Files (x86)\Microsoft Visual Studio 14.0\Common7\IDE\VSLauncher.exe" "%1" False "C:\Program Files (x86)\Microsoft Visual Studio 14.0\Common7\IDE\VSLauncher.exe" "%1" False
-
-        # '.fs', '.fsscript', '.fsx',  '.fsi', and '.fsproj' have an empty `command`
+            self.assertTrue(False)
 
     def test_feeder(self):
         feeder = Feeder()

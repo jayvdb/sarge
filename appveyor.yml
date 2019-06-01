@@ -142,6 +142,34 @@ install:
   - reg query HKCR\AnalysisServices.BIMFile /s
   - reg query HKCR\AnalysisServices.BISMProject /s
 
+  - reg query HKCR\.eml /s
+  # missing reg query "HKCR\Microsoft Email Message"
+  - reg query HKCR\.shtml /s
+  # reg query HKCR\shtmlfile /s
+  # .sdf is the only other case of spaces in the key, but it does have
+  # a registry entry
+  - reg query HKCR\.sdf /s
+  - reg query "HKCR\Microsoft SQL Server Compact Edition Database File" /s
+
+  - reg query HKCR\.dtproj /s
+  - reg query HKCR\IntegrationServices.Project.140 /s
+  - reg query HKCR\.ispac /s
+  - reg query HKCR\IntegrationServices.ProjectDeploymentFile.130 /s
+  - reg query HKCR\.vdp /s
+  - reg query HKCR\(wix.AppIdName).vdp.12.0 /s
+  - reg query HKCR\.vdproj /s
+  - reg query HKCR\(wix.AppIdName).Launcher.vdproj.14.0 /s
+  - reg query HKCR\.tt /s
+  - reg query HKCR\VisualStudio.TextTemplating.12.0 /s
+  - reg query HKCR\.xrm-ms /s
+  - reg query HKCR\MSSppLicenseFile /s
+  - reg query HKCR\.wpa /s
+  - reg query HKCR\wpa.wpa_file /s
+
+  - reg query HKCR\.cpl /s
+  - reg query HKCR\cplfile /s
+  - reg query HKCR\accountpicturefile /s
+
 build: false  # Not a C# project, build stuff at the test step instead.
 
 test_script:
