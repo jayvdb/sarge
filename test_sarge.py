@@ -905,6 +905,7 @@ class SargeTest(unittest.TestCase):
                     pass
 
             count = 0
+            NO_EXE = []
             for extn in iter_extns():
                 if extn in IGNORE_EXTENSIONS:
                     continue
@@ -929,8 +930,10 @@ class SargeTest(unittest.TestCase):
                 elif '%0' not in exe and '%1' not in exe and '%L' not in exe and '%l' not in exe:
                     # Doesnt contain %0, %1 or %L, so not really an open command
                     continue
-                if exe in ('"%1" %*', '%1 %*'):
+                if exe in ('"%1" %*', '%1 %*', '"" "%1"'):
                     print('execute the file', extn, exe)
+                    NO_EXE.append(extn)
+                    continue
                 if not COMMAND_RE.match(exe):
                     print('skipping', extn, exe)
                     continue
@@ -971,6 +974,7 @@ class SargeTest(unittest.TestCase):
 
             # arbitary check to ensure some processing occurred
             self.assertGreater(count, 100)
+            self.assertEqual(set(NO_EXE), set(['.bat', '.cmd', '.exe', '.pif', '.fs']))
             self.assertTrue(False)
 
         # .eml is Microsoft Email Message , which is missing
