@@ -822,6 +822,9 @@ class SargeTest(unittest.TestCase):
                 self.assertIsNotNone(p)
                 self.assertIn('Hello', p.stdout.text)
 
+            # Test missing quotes with args
+            # .blg: ['%SystemRoot%\\system32\\perfmon /sys /open', 'foo.blg'] expanded to C:\windows\system32\perfmon /sys /open.
+
         if os.environ.get('WINDOWS_SDK_VERSION', None):
             # Tests including spaces in the file path
             def test_find_command_msvc_setenv(self):

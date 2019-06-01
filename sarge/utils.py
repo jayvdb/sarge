@@ -81,7 +81,7 @@ if sys.platform == 'win32':
         import _winreg as winreg
 
     # See https://superuser.com/q/136838 for available placeholders
-    COMMAND_RE = re.compile(r'^"?(?P<cmd>[^"]*)"? '
+    COMMAND_RE = re.compile(r'^("(?P<cmd>[^"]*)"|(?P<cmd>[^ ]*)) '
                             r'(?P<pre>.*[^"])?'
                             r'(?P<fileplaceholder>"%[01Ll]"|%[01Ll])'
                             r'(?P<post>[^"].*)?$')
