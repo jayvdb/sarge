@@ -169,6 +169,9 @@ install:
   - reg query HKCR\.scr /s
   - reg query HKCR\scrfile /s
 
+  - reg query HKCR\.actions4 /s
+  - reg query HKCR\.symlink /s
+
   - reg query HKCR\.cpl /s
   - reg query HKCR\cplfile /s
   - reg query HKCR\accountpicturefile /s

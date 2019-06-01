@@ -934,20 +934,24 @@ class SargeTest(unittest.TestCase):
                 ftype = winreg.QueryValue(HKCR, extn.lower())
 
                 if not ftype:
+                    # Check that OpenKey does work
                     try:
                         key = winreg.OpenKey(HKCR, extn)
                         print('succeeded openkey extn {}'.format(extn))
                     except OSError:
-                        print('failed openkey extn {}'.format(extn))
+                        raise RuntimeError('failed openkey extn {}'.format(extn))
                     if extn != extn.lower():
                         try:
                             key = winreg.OpenKey(HKCR, extn.lower())
+                            print('succeeded openkey lowercase extn {}'.format(extn))
                         except OSError:
-                            print('openkey extn {} is not found at {}'.format(extn, extn.lower()))
+                            raise RuntimeError('openkey extn {} is not found at {}'.format(extn, extn.lower()))
                     print('ftype for extn {} is missing'.format(extn))
                     continue
                 if ' ' in ftype:
                     print('spaces in {} ftype {}'.format(extn, ftype))
+                if ftype.startswith('.'):
+                    print('{} ftype {} starts with a dot'.format(extn, ftype))
                 path = os.path.join(ftype, 'shell', 'open', 'command')
                 try:
                     key = winreg.OpenKey(HKCR, path)
