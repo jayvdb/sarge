@@ -974,7 +974,7 @@ class SargeTest(unittest.TestCase):
 
             # arbitary check to ensure some processing occurred
             self.assertGreater(count, 100)
-            self.assertEqual(set(NO_EXE), set(['.bat', '.cmd', '.exe', '.pif', '.fs']))
+            self.assertEqual(set(NO_EXE), set(['.bat', '.cmd', '.exe', '.com', '.pif', '.fs', '.fsscript', '.fsx',  '.fsi', '.fsproj']))
             self.assertTrue(False)
 
         # .eml is Microsoft Email Message , which is missing

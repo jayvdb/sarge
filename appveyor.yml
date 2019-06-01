@@ -127,6 +127,7 @@ install:
   - reg query HKCR\AnalysisServices.BIMFile /s
   - reg query HKCR\AnalysisServices.BISMProject /s
   - reg query HKCR\.fs /s
+  - reg query HKCR\VisualStudio.fs.9.0 /s
 
 build: false  # Not a C# project, build stuff at the test step instead.
 
