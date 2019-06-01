@@ -928,17 +928,22 @@ class SargeTest(unittest.TestCase):
             for extn in iter_extns():
                 if extn in IGNORE_EXTENSIONS:
                     continue
+                if extn != extn.lower():
+                    print('{} is not lowercase'.format(extn))
+
                 ftype = winreg.QueryValue(HKCR, extn.lower())
+
                 if not ftype:
                     try:
-                        key = winreg.OpenKey(HKCR, extn.lower())
-                    except OSError:
-                        print('extn {} is not found at {}'.format(extn, extn.lower()))
-                    try:
                         key = winreg.OpenKey(HKCR, extn)
+                        print('succeeded openkey extn {}'.format(extn))
                     except OSError:
-                        print('extn {} is not found'.format(extn))
-                        continue
+                        print('failed openkey extn {}'.format(extn))
+                    if extn != extn.lower():
+                        try:
+                            key = winreg.OpenKey(HKCR, extn.lower())
+                        except OSError:
+                            print('openkey extn {} is not found at {}'.format(extn, extn.lower()))
                     print('ftype for extn {} is missing'.format(extn))
                     continue
                 if ' ' in ftype:
@@ -978,7 +983,7 @@ class SargeTest(unittest.TestCase):
                     continue
 
                 exe_expanded = winreg.ExpandEnvironmentStrings(exe)
-                print(extn, exe, os.path.exists(exe), exe_expanded, os.path.exists(exe_expanded))
+                print(extn, ftype, exe, os.path.exists(exe), exe_expanded, os.path.exists(exe_expanded))
                 count = count + 1
                 try:
                     cmd = find_command('.\\foo' + extn)
