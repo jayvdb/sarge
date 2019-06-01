@@ -715,8 +715,25 @@ class SargeTest(unittest.TestCase):
             cmd = which('hellobat')
             self.assertEqual(cmd, '.\\hellobat.BAT')
 
+            cmd = which('.\\hellobat.bat')
+            self.assertEqual(cmd, '.\\hellobat.bat')
+            cmd = which('.\\hellobat')
+            self.assertIsNone(cmd)
+            abspath = os.path.abspath('.\\hellobat.bat')
+            cmd = which(abspath)
+            self.assertTrue(abspath)
+
             # This might be false on case sensitive file systems
             self.assertTrue(os.path.exists('.\\hellobat.CMD'))
+
+        def test_which_batch_missing(self):
+            cmd = which('.\\missing.bat')
+            self.assertIsNone(cmd)
+            cmd = which('missing.bat')
+            self.assertIsNone(cmd)
+            abspath = os.path.abspath('.\\missing.bat')
+            cmd = which(abspath)
+            self.assertTrue(abspath)
 
         def _test_which_python(self):
             with open('hellopy.py', 'w') as f:
