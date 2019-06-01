@@ -931,11 +931,11 @@ class SargeTest(unittest.TestCase):
                     # Doesnt contain %0, %1 or %L, so not really an open command
                     continue
                 if exe in ('"%1" %*', '%1 %*', '"" "%1"'):
-                    print('execute the file', extn, exe)
+                    print('execute the file', extn, ftype, exe)
                     NO_EXE.append(extn)
                     continue
                 if not COMMAND_RE.match(exe):
-                    print('skipping', extn, exe)
+                    print('skipping unmatched', extn, ftype, exe)
                     continue
 
                 exe_expanded = winreg.ExpandEnvironmentStrings(exe)
