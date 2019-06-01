@@ -99,8 +99,11 @@ if sys.platform == 'win32':
         """
         result = None
         cmd_orig = cmd
-        cmd = which(cmd)
-        print('which({}) = {}'.format(cmd_orig, cmd))
+        if cmd.startswith('.\\'):
+            cmd = cmd[2:]
+        elif not os.path.isabs(cmd):
+            cmd = which(cmd)
+            print('which({}) = {}'.format(cmd_orig, cmd))
         if cmd:
             if cmd.startswith('.\\'):
                 cmd = cmd[2:]
