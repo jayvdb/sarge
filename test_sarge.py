@@ -700,20 +700,15 @@ class SargeTest(unittest.TestCase):
 
     if sys.platform == 'win32':  #pragma: no cover
 
-        def test_which_batch(self):
+        def test_which_bat(self):
             with open('hellobat.bat', 'w') as f:
-                f.write('echo Hello World"')
+                f.write('@echo Hello World')
             with open('hellobat.cmd', 'w') as f:
-                f.write('echo Hello World')
+                f.write('@echo Hello World')
 
             cmd = which('hellobat.bat')
             self.assertIsNotNone(cmd, '.bat not in PATHEXT or not registered')
             self.assertEqual(cmd, '.\\hellobat.bat')
-            cmd = which('hellobat.cmd')
-            self.assertIsNotNone(cmd, '.cmd not in PATHEXT or not registered')
-            self.assertEqual(cmd, '.\\hellobat.cmd')
-            cmd = which('hellobat')
-            self.assertEqual(cmd, '.\\hellobat.BAT')
 
             cmd = which('.\\hellobat.bat')
             self.assertEqual(cmd, '.\\hellobat.bat')
@@ -724,9 +719,35 @@ class SargeTest(unittest.TestCase):
             self.assertTrue(abspath)
 
             # This might be false on case sensitive file systems
+            self.assertTrue(os.path.exists('.\\hellobat.BAT'))
+
+        def test_which_cmd(self):
+            with open('hellocmd.cmd', 'w') as f:
+                f.write('@echo Hello World')
+
+            cmd = which('hellocmd.cmd')
+            self.assertIsNotNone(cmd, '.cmd not in PATHEXT or not registered')
+            self.assertEqual(cmd, '.\\hellocmd.cmd')
+            cmd = which('hellocmd')
+            self.assertEqual(cmd, '.\\hellocmd.CMD')
+
+            # This might be false on case sensitive file systems
             self.assertTrue(os.path.exists('.\\hellobat.CMD'))
 
-        def test_which_batch_missing(self):
+        def test_which_scr(self):
+            with open('helloscr.scr', 'w') as f:
+                f.write('Invalid')
+
+            cmd = which('helloscr.scr')
+            self.assertIsNotNone(cmd, '.cmd not in PATHEXT or not registered')
+            self.assertEqual(cmd, '.\\helloscr.scr')
+            cmd = which('helloscr')
+            self.assertEqual(cmd, '.\\helloscr.SCR')
+
+            # This might be false on case sensitive file systems
+            self.assertTrue(os.path.exists('.\\helloscr.SCR'))
+
+        def test_which_bat_missing(self):
             cmd = which('.\\missing.bat')
             self.assertIsNone(cmd)
             cmd = which('missing.bat')
@@ -735,7 +756,7 @@ class SargeTest(unittest.TestCase):
             cmd = which(abspath)
             self.assertTrue(abspath)
 
-        def _test_which_python(self):
+        def test_which_python(self):
             with open('hellopy.py', 'w') as f:
                 f.write('print("Hello, world!")')
             with open('hellopy.pyw', 'w') as f:
@@ -778,7 +799,7 @@ class SargeTest(unittest.TestCase):
             p = capture_stdout(cmd)
             self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
 
-        def test_find_command(self):
+        def test_find_command_py(self):
             with open('hellopy.py', 'w') as f:
                 f.write('print("Hello, world!")')
             with open('hellopy.pyw', 'w') as f:
@@ -790,7 +811,7 @@ class SargeTest(unittest.TestCase):
             self.assertIsNotNone(cmd)
             self.assertTrue(pywrunner_re.match(str(cmd)))
 
-        def test_run_found_command(self):
+        def test_run_found_command_py(self):
             with open('hellopy.py', 'w') as f:
                 f.write('print("Hello, world!")')
             cmd = find_command('hellopy')
@@ -798,45 +819,72 @@ class SargeTest(unittest.TestCase):
             p = capture_stdout('hellopy')
             self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
 
+        def test_run_found_command_bat(self):
+            with open('hellobat.bat', 'w') as f:
+                f.write('@echo Hello World')
+            cmd = find_command('hellobat')
+            self.assertIsNotNone(cmd)
+            p = capture_stdout('hellobat')
+            self.assertEqual(p.stdout.text.rstrip(), 'Hello World')
+
+        def test_run_found_command_cmd(self):
+            with open('hellocmd.cmd', 'w') as f:
+                f.write('@echo Hello World')
+            cmd = find_command('hellocmd')
+            self.assertIsNotNone(cmd)
+            p = capture_stdout('hellocmd')
+            self.assertEqual(p.stdout.text.rstrip(), 'Hello World')
+
+        def test_run_found_command_scr(self):
+            import shutil
+            try:
+                shutil.copy(which('echo'), 'helloscr.scr')
+                cmd = find_command('helloscr')
+                self.assertIsNotNone(cmd)
+                p = capture_stdout('helloscr "Hello, world!"')
+                self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
+            finally:
+                os.remove('helloscr.scr')
+
         if os.environ.get('WINDOWS_SDK_VERSION', None):
             # Tests including spaces in the file path
-            def test_find_command_msvc_setenv(self):
+            def test_find_command_cmd_msvc_setenv(self):
                 version = os.environ.get('WINDOWS_SDK_VERSION')
                 cmd = find_command('setenv')
                 self.assertIsNotNone(cmd)
                 self.assertEqual(cmd, (None, 'C:\\Program Files\\Microsoft SDKs\\Windows\\' + version + '\\Bin\\setenv.CMD'))
 
-            def test_run_found_command_msvc_setenv(self):
+            def test_run_found_command_cmd_msvc_setenv(self):
                 p = capture_stdout('SetEnv')
                 self.assertIsNotNone(p)
                 self.assertIn('Setting SDK environment', p.stdout.text)
 
         if 'C:\\Ruby24' in os.environ['PATH']:
-            def test_find_command_ruby_gem(self):
+            def test_find_command_bat_ruby_gem(self):
                 cmd = find_command('gem')
                 self.assertEqual(cmd, (None, 'C:\\Ruby24\\bin\\gem.BAT'))
 
-            def test_find_command_ruby_rdoc(self):
+            def test_find_command_cmd_ruby_rdoc(self):
                 cmd = find_command('rdoc')
                 self.assertEqual(cmd, (None, 'C:\\Ruby24\\bin\\rdoc.CMD'))
 
-            def test_find_command_ruby_bundler(self):
+            def test_find_command_bat_ruby_bundler(self):
                 cmd = find_command('bundler')
                 self.assertEqual(cmd, (None, 'C:\\Ruby24\\bin\\bundler.BAT'))
 
-            def test_run_found_command_ruby_gem(self):
+            def test_run_found_command_bat_ruby_gem(self):
                 p = capture_stdout('gem list -l rdoc')
                 self.assertIsNotNone(p)
                 self.assertIn('rdoc', p.stdout.text)
                 self.assertIn('default:', p.stdout.text)
 
-            def test_run_found_command_ruby_rdoc(self):
+            def test_run_found_command_cmd_ruby_rdoc(self):
                 p = capture_stdout('rdoc C:\\Ruby24\\bin\\rdoc')
                 self.assertIsNotNone(p)
                 self.assertIn('rdoc', p.stdout.text)
                 self.assertIn('100%', p.stdout.text)
 
-            def test_run_found_command_ruby_bundler(self):
+            def test_run_found_command_bat_ruby_bundler(self):
                 p = capture_stdout('bundler help')
                 self.assertIsNotNone(p)
                 self.assertIn('Ruby Dependency Management', p.stdout.text)
