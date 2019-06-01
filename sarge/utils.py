@@ -81,8 +81,8 @@ if sys.platform == 'win32':
         import _winreg as winreg
 
     # See https://superuser.com/q/136838 for available placeholders
-    COMMAND_RE = re.compile(r'^("(?P<cmd>[^"]*)"|(?P<cmd>[^ ]*)) '
-                            r'(?P<pre>.*[^"])?'
+    COMMAND_RE = re.compile(r'^("(?P<cmdquoted>[^"]*)"|(?P<cmdunquoted>[^ ]*))'
+                            r' (?P<pre>.*[^"])?'
                             r'(?P<fileplaceholder>"%[01Ll]"|%[01Ll])'
                             r'(?P<post>[^"].*)?$')
 
@@ -122,7 +122,7 @@ if sys.platform == 'win32':
                 exe = None
                 m = COMMAND_RE.match(s)
                 if m:
-                    exe = m.groups()[0]
+                    exe = m.group('cmdquoted') or m.group('cmdunquoted')
                     if not exe:
                         # Return which result
                         raise RuntimeError('wtf is {} {}'.format(cmd, extn))
