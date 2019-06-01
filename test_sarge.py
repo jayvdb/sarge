@@ -897,8 +897,7 @@ class SargeTest(unittest.TestCase):
                 self.assertIn('Ruby Dependency Management', p.stdout.text)
 
         def test_find_command_all_extensions(self):
-            from sarge.utils import winreg, COMMAND_RE
-            HKCR = winreg.HKEY_CLASSES_ROOT
+            from sarge.utils import COMMAND_RE, EXECUTABLE_EXTENSIONS
             # Failures here are be due to bugs in the host registry
             # https://github.com/appveyor/ci/issues/2955
             IGNORE_EXTENSIONS = (
@@ -970,12 +969,12 @@ class SargeTest(unittest.TestCase):
                 elif '%0' not in exe and '%1' not in exe and '%L' not in exe and '%l' not in exe:
                     # Doesnt contain %0, %1 or %L, so not really an open command
                     continue
-                if exe in ('"%1" %*', '%1 %*'):
+                if exe in ('"%1" %*', '%1 %*', '"%1" /S'):
                     print('execute the file', extn, ftype, exe)
                     NO_EXE.append(extn)
                     continue
                 if not COMMAND_RE.match(exe):
-                    print('skipping unmatched', extn, ftype, exe)
+                    raise RuntimeError('skipping unmatched {} {} {}'.format(extn, ftype, exe))
                     continue
 
                 exe_expanded = winreg.ExpandEnvironmentStrings(exe)
@@ -1014,7 +1013,7 @@ class SargeTest(unittest.TestCase):
 
             # arbitary check to ensure some processing occurred
             self.assertGreater(count, 100)
-            self.assertEqual(set(NO_EXE), set(['.bat', '.cmd', '.exe', '.com', '.pif']))
+            self.assertEqual(set(NO_EXE), set(EXECUTABLE_EXTENSIONS))
             self.assertTrue(False)
 
     def test_feeder(self):

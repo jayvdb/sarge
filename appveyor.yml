@@ -166,6 +166,9 @@ install:
   - reg query HKCR\.wpa /s
   - reg query HKCR\wpa.wpa_file /s
 
+  - reg query HKCR\.scr /s
+  - reg query HKCR\scrfile /s
+
   - reg query HKCR\.cpl /s
   - reg query HKCR\cplfile /s
   - reg query HKCR\accountpicturefile /s
