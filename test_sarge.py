@@ -25,7 +25,9 @@ from sarge.shlext import shell_shlex
 from stack_tracer import start_trace, stop_trace
 
 if sys.platform == 'win32':  #pragma: no cover
-    from sarge.utils import which, find_command
+    from sarge.utils import which, find_command, winreg
+
+    HKCR = winreg.HKEY_CLASSES_ROOT
 
 TRACE_THREADS = sys.platform not in ('cli',)    # debugging only
 
@@ -797,6 +799,49 @@ class SargeTest(unittest.TestCase):
             p = capture_stdout('hellopl')
             self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
 
+        def test_find_command_hta(self):
+            if '.HTA' not in os.environ.get('PATHEXT', '').split(os.path.pathsep):
+                raise unittest.SkipTest('.hta not in PATHEXT or not registered')
+            with open('hellohta.hta', 'w') as f:
+                f.write('<HTA:APPLICATION icon="#" WINDOWSTATE="minimize" '
+                        'SHOWINTASKBAR="no" SYSMENU="no" CAPTION="no"/>')
+            cmd = find_command('.\\hellohta.hta')
+            self.assertEqual(cmd, ['C:\\Windows\\SysWOW64\\mshta.exe', 'hellohta.hta', '{1E460BD7-F1C3-4B2E-88BF-4E770A288AF5}%U{1E460BD7-F1C3-4B2E-88BF-4E770A288AF5}'])
+
+        if os.path.exists('Hello.jar'):
+            def test_find_command_jar(self):
+                if '.JAR' not in os.environ.get('PATHEXT', '').split(os.path.pathsep):
+                    raise unittest.SkipTest('.jar not in PATHEXT or not registered')
+                cmd = find_command('Hello.jar')
+                self.assertIsNotNone(cmd)
+                # Ignore the Java version in the directory
+                self.assertTrue(cmd[0].endswith('\\bin\\javaw.exe'))
+                # The purpose of these jar tests is to check spaces in cmd
+                # If this fails, a new test case needs to be devised.
+                self.assertIn(' ', cmd[0])
+                self.assertEqual(cmd[1:], ['-jar', 'Hello.jar'])
+
+            def test_run_found_command_jar(self):
+                p = capture_stdout('Hello.jar')
+                self.assertIsNotNone(p)
+                self.assertIn('Hello', p.stdout.text)
+
+        def test_find_command_no_quotes(self):
+            if '.BLG' not in os.environ.get('PATHEXT', '').split(os.path.pathsep):
+                raise unittest.SkipTest('.blg not in PATHEXT or not registered')
+            key = winreg.OpenKey(HKCR, 'Diagnostic.Perfmon.Document\\shell\\open\\command')
+            s, _ = winreg.QueryValueEx(key, None)
+            # The purpose of this tests is to check no quotes and args.
+            # If this fails, a new test subject needs to be used.
+            self.assertEqual(s, '%SystemRoot%\\system32\\perfmon /sys /open "%1"')
+
+            with open('helloblg.blg', 'w') as f:
+                f.write('')
+            cmd = find_command('helloblg.blg')
+            self.assertIsNotNone(cmd)
+            self.assertEqual(cmd[0], '%SystemRoot%\\system32\\perfmon')
+            self.assertEqual(cmd[1:], ['/sys', '/open', 'helloblg.blg'])
+
         if os.environ.get('WINDOWS_SDK_VERSION', None):
             # Tests including spaces in the file path
             def test_find_command_msvc_setenv(self):
@@ -809,6 +854,17 @@ class SargeTest(unittest.TestCase):
                 p = capture_stdout('SetEnv')
                 self.assertIsNotNone(p)
                 self.assertIn('Setting SDK environment', p.stdout.text)
+
+            def test_find_command_msvc_msi(self):
+                # The bin directory contains three; MsiVal2.Msi, Orca.Msi and
+                # DeviceSimulatorForWindowsSideShow.msi
+                if '.MSI' not in os.environ.get('PATHEXT', '').split(os.path.pathsep):
+                    raise unittest.SkipTest('.msi not in PATHEXT or not registered')
+                version = os.environ.get('WINDOWS_SDK_VERSION')
+                msi_file = 'C:\\Program Files\\Microsoft SDKs\\Windows\\' + version + '\\Bin\\MsiVal2.Msi'
+                cmd = find_command(msi_file)
+                self.assertIsNotNone(cmd)
+                self.assertEqual(cmd, ['%SystemRoot%\System32\msiexec.exe', '/i', msi_file])
 
         if 'C:\\Ruby24' in os.environ['PATH']:
             def test_find_command_ruby_gem(self):
