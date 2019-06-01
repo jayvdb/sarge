@@ -921,7 +921,7 @@ class SargeTest(unittest.TestCase):
                     print('Unexpectedly missing value', path)
                     continue
                 if not exe:
-                    if ftype in ('AnalysisServices.BIMFile', ):
+                    if ftype in ('AnalysisServices.BIMFile', 'AnalysisServices.BISMProject'):
                         continue
                     raise RuntimeError('Unexpectedly empty value', path)
                 elif '%' not in exe:
