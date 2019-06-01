@@ -1048,6 +1048,137 @@ class SargeWindowsTest(unittest.TestCase):  # pragma: no cover
             self.assertIsNotNone(p)
             self.assertIn('Ruby Dependency Management', p.stdout.text)
 
+        def test_find_command_all_extensions(self):
+            from sarge.utils import COMMAND_RE, EXECUTABLE_EXTENSIONS
+            # Failures here are be due to bugs in the host registry
+            # https://github.com/appveyor/ci/issues/2955
+            IGNORE_EXTENSIONS = (
+                '.dtproj', '.ispac', '.tt',
+                '.SSISDeploymentManifest', '.vdp', '.vdproj',
+                '.wpa',
+                '.fs', '.fsscript', '.fsx',  '.fsi', '.fsproj',
+            )
+            HKCR = winreg.HKEY_CLASSES_ROOT
+
+            def iter_extns():
+                hdl = winreg.ConnectRegistry(None, HKCR)
+                try:
+                    i = 0
+                    while True:
+                        subkey = winreg.EnumKey(hdl, i)
+                        if subkey.startswith('.'):
+                            yield subkey
+                        i += 1
+
+                except WindowsError as e:
+                    print(i, e)
+                    # WindowsError: [Errno 259] No more data is available
+                    pass
+
+            count = 0
+            execute_arg1_list = []
+            for extn in iter_extns():
+                if extn in IGNORE_EXTENSIONS:
+                    continue
+                if extn != extn.lower():
+                    print('{} is not lowercase'.format(extn))
+
+                ftype = winreg.QueryValue(HKCR, extn.lower())
+
+                if not ftype:
+                    # Check that OpenKey does work
+                    try:
+                        key = winreg.OpenKey(HKCR, extn)
+                        print('succeeded openkey extn {}'.format(extn))
+                    except OSError:
+                        raise RuntimeError('failed openkey extn {}'.format(extn))
+                    if extn != extn.lower():
+                        try:
+                            key = winreg.OpenKey(HKCR, extn.lower())
+                            print('succeeded openkey lowercase extn {}'.format(extn))
+                        except OSError:
+                            raise RuntimeError('openkey extn {} is not found at {}'.format(extn, extn.lower()))
+                    print('ftype for extn {} is missing'.format(extn))
+                    continue
+                if ' ' in ftype:
+                    print('spaces in {} ftype {}'.format(extn, ftype))
+                if ftype.startswith('.'):
+                    print('{} ftype {} starts with a dot'.format(extn, ftype))
+                path = os.path.join(ftype, 'shell', 'open', 'command')
+                try:
+                    key = winreg.OpenKey(HKCR, path)
+                except OSError:
+                    try:
+                        key = winreg.OpenKey(HKCR, ftype)
+                    except OSError:
+                        print('ftype is missing', extn, ftype)
+                        continue
+                    print('openkey failed', extn, path)
+                    continue
+                try:
+                    exe, _ = winreg.QueryValueEx(key, None)
+                except OSError:
+                    print('Unexpectedly missing value', extn, path)
+                    continue
+                if not exe:
+                    if ftype in ('AnalysisServices.BIMFile', 'AnalysisServices.BISMProject'):
+                        continue
+                    raise RuntimeError('Unexpectedly empty value', path)
+                elif '%' not in exe:
+                    # Doesnt contain %0, %1 or %L, so not really an open command
+                    continue
+                elif '%0' not in exe and '%1' not in exe and '%L' not in exe and '%l' not in exe:
+                    # Doesnt contain %0, %1 or %L, so not really an open command
+                    continue
+                if exe.startswith('"%1"') or exe.startswith('%1'):
+                    print('execute the file directly', extn, ftype, exe)
+                    self.assertIn(exe, ('"%1" %*', '%1 %*', '"%1" /S'))
+                    execute_arg1_list.append(extn)
+                    continue
+                if not COMMAND_RE.match(exe):
+                    raise RuntimeError('skipping unmatched {} {} {}'.format(extn, ftype, exe))
+                    continue
+
+                exe_expanded = winreg.ExpandEnvironmentStrings(exe)
+                print(extn, ftype, exe, os.path.exists(exe), exe_expanded, os.path.exists(exe_expanded))
+                count = count + 1
+                try:
+                    cmd = find_command('.\\foo' + extn)
+                except RuntimeError as e:
+                    print(extn, e)
+                    raise
+                self.assertIsNotNone(cmd)
+                if not cmd[0]:
+                    self.assertIn(cmd[1], ['foo' + extn, '.\\foo' + extn.upper()])
+                elif cmd[0] in ('iexplore', 'iexplore.exe'):
+                    # iexplore is executable even when not in the PATH
+                    continue
+                else:
+                    expanded = winreg.ExpandEnvironmentStrings(cmd[0])
+                    if '%' in expanded:
+                        # .tt VisualStudio.TextTemplating.12.0 %VsInstallDir%\devenv.exe
+                        raise ValueError('Expansions of {} didnt work'.format(cmd[0]))
+
+                    # print('expanded', expanded)
+                    if not os.path.exists(expanded):
+                        if os.path.isabs(expanded):
+                            if not expanded.endswith('.exe'):
+                                expanded = expanded + '.exe'
+                        else:
+                            expanded = which(expanded)
+                        # print('expanded', expanded)
+
+                    self.assertTrue(
+                        os.path.exists(expanded),
+                        '{}: {} expanded to {} not found'.format(
+                            extn, cmd, expanded))
+
+            # arbitary check to ensure some processing occurred
+            self.assertGreater(count, 100)
+            self.assertEqual(set(execute_arg1_list), set(EXECUTABLE_EXTENSIONS))
+            # Uncomment to see debugging
+            # self.assertTrue(False)
+
 
 if __name__ == '__main__':  #pragma: no cover
     # switch the level to DEBUG for in-depth logging.
