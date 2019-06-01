@@ -59,7 +59,8 @@ cache:
 install:
   - echo %PathExt%
   # Add associations needed for the tests
-  - SET PATHEXT=%PATHEXT%;.PYW;.PL;.RB
+  - SET PATHEXT=%PATHEXT%;.PYW;.PL;.RB;.MSI;.HTA;.JAR
+  - echo %PathExt%
 
   # Ruby 2.4 contains different executables with different sets of extension
   # which can be used to test different scenarios:
@@ -89,6 +90,9 @@ install:
   - dir "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv*"
   # `which setenv.cmd` and `which setenv` both fail, probably because the
   # file is called SetEnv.Cmd
+
+  # Get a command line executable jar for testing
+  - wget https://github.com/drobbins/Hello-Java/raw/master/Hello.jar
 
   # Check that we have the expected version and architecture for Python
   - python --version

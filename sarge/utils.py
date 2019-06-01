@@ -81,7 +81,10 @@ if sys.platform == 'win32':
         import _winreg as winreg
 
     # See https://superuser.com/q/136838 for available placeholders
-    COMMAND_RE = re.compile(r'^"?([^"]*)"? *"%[01Ll]" %\*$')
+    COMMAND_RE = re.compile(r'^"?(?P<cmd>[^"]*)"? '
+                            r'(?P<pre>.*[^"])?'
+                            r'(?P<fileplaceholder>"%[01Ll]"|%[01Ll])'
+                            r'(?P<post>[^"].*)?$')
 
     def find_command(cmd):
         """
@@ -95,11 +98,14 @@ if sys.platform == 'win32':
                   (r'c:\Python\python.exe', r'c:\MyTools\hello.py').
         """
         result = None
+        cmd_orig = cmd
         cmd = which(cmd)
+        print('which({}) = {}'.format(cmd_orig, cmd))
         if cmd:
             if cmd.startswith('.\\'):
                 cmd = cmd[2:]
             _, extn = os.path.splitext(cmd)
+            print('extn', extn)
             # Special case extensions which have open command '"%[1L]" %*'
             if extn and extn.lower() in ('.bat', '.cmd', '.com', '.pif'):
                 return None, cmd
@@ -116,8 +122,21 @@ if sys.platform == 'win32':
                     exe = m.groups()[0]
                     if not exe:
                         # Return which result
+                        raise RuntimeError('wtf is {} {}'.format(cmd, extn))
                         return None, cmd
-                    result = exe, cmd
+                    result = [exe]
+                    if m.group('pre'):
+                        result += m.group('pre').split()
+                    result += [cmd]
+                    if m.group('post'):
+                        switches = m.group('post').split()
+                        switches = [item for item in switches
+                                    if item != '%*']
+                        if switches:
+                            result += switches
+                    print('result', result)
             except OSError:
                 pass
+        else:
+            print('which failed for {}'.format(cmd_orig))
         return result
