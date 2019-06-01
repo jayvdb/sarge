@@ -896,6 +896,138 @@ class SargeTest(unittest.TestCase):
                 self.assertIsNotNone(p)
                 self.assertIn('Ruby Dependency Management', p.stdout.text)
 
+        def test_find_command_all_extensions(self):
+            from sarge.utils import winreg, COMMAND_RE
+            HKCR = winreg.HKEY_CLASSES_ROOT
+            # Failures here could be due to bugs in the host registry
+            IGNORE_EXTENSIONS = (
+                '.wpa', '.dtproj', '.ispac',
+                '.SSISDeploymentManifest', '.tt', '.vdp', '.vdproj',
+                '.fs', '.fsscript', '.fsx',  '.fsi', '.fsproj',
+            )
+            def iter_extns():
+                hdl = winreg.ConnectRegistry(None, HKCR)
+                try:
+                    i = 0
+                    while True:
+                        subkey = winreg.EnumKey(hdl, i)
+                        if subkey.startswith('.'):
+                            yield subkey
+                        #else:
+                        #    print('discarding', subkey)
+                        i += 1
+
+                except WindowsError as e:
+                    print(i, e)
+                    # WindowsError: [Errno 259] No more data is available
+                    pass
+
+            count = 0
+            NO_EXE = []
+            for extn in iter_extns():
+                if extn in IGNORE_EXTENSIONS:
+                    continue
+                ftype = winreg.QueryValue(HKCR, extn.lower())
+                path = os.path.join(ftype, 'shell', 'open', 'command')
+                try:
+                    key = winreg.OpenKey(HKCR, path)
+                except OSError:
+                    continue
+                try:
+                    exe, _ = winreg.QueryValueEx(key, None)
+                except OSError:
+                    print('Unexpectedly missing value', path)
+                    continue
+                if not exe:
+                    if ftype in ('AnalysisServices.BIMFile', 'AnalysisServices.BISMProject'):
+                        continue
+                    raise RuntimeError('Unexpectedly empty value', path)
+                elif '%' not in exe:
+                    # Doesnt contain %0, %1 or %L, so not really an open command
+                    continue
+                elif '%0' not in exe and '%1' not in exe and '%L' not in exe and '%l' not in exe:
+                    # Doesnt contain %0, %1 or %L, so not really an open command
+                    continue
+                if exe in ('"%1" %*', '%1 %*', '"" "%1"'):
+                    print('execute the file', extn, ftype, exe)
+                    NO_EXE.append(extn)
+                    continue
+                if not COMMAND_RE.match(exe):
+                    print('skipping unmatched', extn, ftype, exe)
+                    continue
+
+                exe_expanded = winreg.ExpandEnvironmentStrings(exe)
+                print(extn, exe, os.path.exists(exe), exe_expanded, os.path.exists(exe_expanded))
+                count = count + 1
+                try:
+                    cmd = find_command('.\\foo' + extn)
+                except RuntimeError as e:
+                    print(extn, e)
+                    raise
+                self.assertIsNotNone(cmd)
+                if not cmd[0]:
+                    self.assertIn(cmd[1], ['foo' + extn, '.\\foo' + extn.upper()])
+                elif cmd[0] in ('iexplore', 'iexplore.exe'):
+                    # iexplore is executable even when not in the PATH
+                    continue
+                else:
+                    expanded = winreg.ExpandEnvironmentStrings(cmd[0])
+                    if '%' in expanded:
+                        # .tt VisualStudio.TextTemplating.12.0 %VsInstallDir%\devenv.exe
+                        raise ValueError('Expansions of {} didnt work'.format(cmd[0]))
+
+                    # print('expanded', expanded)
+                    if not os.path.exists(expanded):
+                        if os.path.isabs(expanded):
+                            if not expanded.endswith('.exe'):
+                                expanded = expanded + '.exe'
+                        else:
+                            expanded = which(expanded)
+                        # print('expanded', expanded)
+
+                    self.assertTrue(
+                        os.path.exists(expanded),
+                        '{}: {} expanded to {} not found'.format(
+                            extn, cmd, expanded))
+
+            # arbitary check to ensure some processing occurred
+            self.assertGreater(count, 100)
+            self.assertEqual(set(NO_EXE), set(['.bat', '.cmd', '.exe', '.com', '.pif']))
+            # self.assertTrue(False)
+
+        # .eml is Microsoft Email Message , which is missing
+
+        # .wpa is wpa.wpa_file
+        # .wpa C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\wpa.exe "%1" False C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\wpa.exe "%1" False
+        # s C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\wpa.exe "%1"
+        # expanded C:\Program
+        # expanded C:\Program.exe
+
+        # .xrm-ms "iexplore.exe" "%1" False "iexplore.exe" "%1" False
+        # ftype MSSppLicenseFile
+        # s "iexplore.exe" "%1"
+        # expanded iexplore.exe
+        # expanded None
+        # 'iexplore' is not recognized as an internal or external command,
+        # operable program or batch file.
+
+        # .dtproj "C:\Program Files (x86)\Microsoft Visual Studio 14.0\Common7\IDE\PrivateAssemblies\devenv.exe" "%L" False "C:\Program Files (x86)\Microsoft Visual Studio 14.0\Common7\IDE\PrivateAssemblies\devenv.exe" "%L" False
+        # The directory contains devenv.exe.config.tmp but not devenv.exe
+
+        # .ispac is IntegrationServices.ProjectDeploymentFile.130
+        # .ispac "C:\Program Files\Microsoft SQL Server\130\DTS\Binn\isdeploymentwizard.exe" /SourcePath:"%1" False "C:\Program Files\Microsoft SQL Server\130\DTS\Binn\isdeploymentwizard.exe" /SourcePath:"%1" False
+        # .SSISDeploymentManifest is IntegrationServices.DeploymentManifest.130
+        # .SSISDeploymentManifest "C:\Program Files\Microsoft SQL Server\130\DTS\Binn\dtsinstall.exe" "%1" False "C:\Program Files\Microsoft SQL Server\130\DTS\Binn\dtsinstall.exe" "%1" False
+        # Binn does exist, but isdeploymentwizard.exe and dtsinstall.exe are not there
+
+        # .vdp is (wix.AppIdName).vdp.12.0
+        # .vdp "C:\Program Files (x86)\Microsoft Visual Studio 12.0\Common7\IDE\VSLauncher.exe" "%1" False "C:\Program Files (x86)\Microsoft Visual Studio 12.0\Common7\IDE\VSLauncher.exe" "%1" False
+        # Directory exists; VSLauncher.exe is missing
+        # .vdproj is (wix.AppIdName).Launcher.vdproj.14.0
+        # .vdproj "C:\Program Files (x86)\Microsoft Visual Studio 14.0\Common7\IDE\VSLauncher.exe" "%1" False "C:\Program Files (x86)\Microsoft Visual Studio 14.0\Common7\IDE\VSLauncher.exe" "%1" False
+
+        # '.fs', '.fsscript', '.fsx',  '.fsi', and '.fsproj' have an empty `command`
+
     def test_feeder(self):
         feeder = Feeder()
         p = capture_stdout([sys.executable, 'echoer.py'], input=feeder,

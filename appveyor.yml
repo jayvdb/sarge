@@ -132,7 +132,15 @@ install:
   - reg query HKCR\.blg /s
   - reg query HKCR\Diagnostic.Perfmon.Document /s
 
+  - reg query HKCR\.fs /s
+  - reg query HKCR\VisualStudio.fs.9.0 /s
+  - reg query HKCR\.fsx /s
+  - reg query HKCR\VisualStudio.fsx.9.0 /s
+
   - python -m pip install pytest pytest-timeout .
+
+  - reg query HKCR\AnalysisServices.BIMFile /s
+  - reg query HKCR\AnalysisServices.BISMProject /s
 
 build: false  # Not a C# project, build stuff at the test step instead.
 
