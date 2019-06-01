@@ -124,6 +124,8 @@ install:
 
   - python -m pip install pytest pytest-timeout .
 
+  - reg query HKCR\AnalysisServices.BIMFile /s
+
 build: false  # Not a C# project, build stuff at the test step instead.
 
 test_script:
