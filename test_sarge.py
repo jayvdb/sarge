@@ -29,7 +29,7 @@ if sys.platform == 'win32':  #pragma: no cover
     import glob
     import textwrap
 
-    from sarge.utils import find_command
+    from sarge.utils import which, find_command, winreg
 
 TRACE_THREADS = sys.platform not in ('cli',)    # debugging only
 
@@ -919,6 +919,55 @@ class SargeWindowsTest(unittest.TestCase):  # pragma: no cover
         self.assertIsNotNone(cmd)
         p = capture_stdout('hellopl')
         self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
+
+    def test_find_command_hta(self):
+        skip_missing_association('.hta')
+
+        with open('hellohta.hta', 'w') as f:
+            f.write('<HTA:APPLICATION icon="#" WINDOWSTATE="minimize" '
+                    'SHOWINTASKBAR="no" SYSMENU="no" CAPTION="no"/>')
+        cmd = find_command('.\\hellohta.hta')
+        self.assertEqual(cmd, ['C:\\Windows\\SysWOW64\\mshta.exe',
+                               'hellohta.hta',
+                               '{1E460BD7-F1C3-4B2E-88BF-4E770A288AF5}%U'
+                               '{1E460BD7-F1C3-4B2E-88BF-4E770A288AF5}'])
+
+
+     def test_find_command_no_quotes(self):
+        skip_missing_association('.blg')
+        ftype = 'Diagnostic.Perfmon.Document'
+
+        key = winreg.OpenKey(winreg.HKEY_CLASSES_ROOT,
+                             '%s\\shell\\open\\command' % ftype)
+        s, _ = winreg.QueryValueEx(key, None)
+        # The purpose of this tests is to check no quotes and args.
+        # If this fails, a new test subject needs to be used.
+        self.assertEqual(s, '%SystemRoot%\\system32\\perfmon /sys /open "%1"')
+
+        with open('helloblg.blg', 'w') as f:
+            f.write('')
+        cmd = find_command('helloblg.blg')
+        self.assertIsNotNone(cmd)
+        self.assertEqual(cmd[0], '%SystemRoot%\\system32\\perfmon')
+        self.assertEqual(cmd[1:], ['/sys', '/open', 'helloblg.blg'])
+
+    if os.path.exists('Hello.jar'):
+        def test_find_command_jar(self):
+            skip_missing_association('.jar')
+
+            cmd = find_command('Hello.jar')
+            self.assertIsNotNone(cmd)
+            # Ignore the Java version in the directory
+            self.assertTrue(cmd[0].endswith('\\bin\\javaw.exe'))
+            # The purpose of these jar tests is to check spaces in cmd
+            # If this fails, a new test case needs to be devised.
+            self.assertIn(' ', cmd[0])
+            self.assertEqual(cmd[1:], ['-jar', 'Hello.jar'])
+
+        def test_run_found_command_jar(self):
+            p = capture_stdout('Hello.jar')
+            self.assertIsNotNone(p)
+            self.assertIn('Hello', p.stdout.text)
 
     if sdk_version:
         # Tests including spaces in the file path

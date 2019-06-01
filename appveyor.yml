@@ -59,7 +59,7 @@ cache:
 install:
   - echo %PathExt%
   # Add associations needed for the tests
-  - SET PATHEXT=%PATHEXT%;.PYW;.PL;.RB
+  - SET PATHEXT=%PATHEXT%;.PYW;.PL;.RB;.MSI;.HTA;.JAR;.BLG
 
   # Ruby 2.4 contains different executables with different sets of extension
   # which can be used to test different scenarios:
@@ -90,6 +90,9 @@ install:
   # `which setenv.cmd` and `which setenv` both fail, probably because the
   # file is called SetEnv.Cmd
 
+  # Get a command line executable jar for testing
+  - wget https://github.com/drobbins/Hello-Java/raw/master/Hello.jar
+
   # Check that we have the expected version and architecture for Python
   - python --version
   - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
@@ -117,6 +120,16 @@ install:
 
   - reg query HKCR\.pl /s
   - reg query HKCR\Perl /s
+
+  - reg query HKCR\.jar /s
+  - reg query HKCR\jarfile /s
+
+  - reg query HKCR\.hta /s
+  - reg query HKCR\htafile /s
+
+  # blg is not useful as executable, but it is useful for testing
+  - reg query HKCR\.blg /s
+  - reg query HKCR\Diagnostic.Perfmon.Document /s
 
   - python -m pip install pytest pytest-timeout pytest-error-for-skips .
 
