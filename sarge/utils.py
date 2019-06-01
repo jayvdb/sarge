@@ -100,7 +100,10 @@ if sys.platform == 'win32':
                   (r'c:\Python\python.exe', r'c:\MyTools\hello.py').
         """
         result = None
-        cmd = which(cmd)
+        if cmd.startswith('.\\'):
+            cmd = cmd[2:]
+        else:
+            cmd = which(cmd)
         if cmd:
             if cmd.startswith('.\\'):
                 cmd = cmd[2:]
