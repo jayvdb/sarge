@@ -59,7 +59,7 @@ cache:
 install:
   - echo %PathExt%
   # Add associations needed for the tests
-  - SET PATHEXT=%PATHEXT%;.PYW;.PL;.RB;.MSI;.HTA;.JAR
+  - SET PATHEXT=%PATHEXT%;.PYW;.PL;.RB;.MSI;.HTA;.JAR;.FSX
   - echo %PathExt%
 
   # Ruby 2.4 contains different executables with different sets of extension
@@ -122,12 +122,15 @@ install:
   - reg query HKCR\.pl /s
   - reg query HKCR\Perl /s
 
+  - reg query HKCR\.fs /s
+  - reg query HKCR\VisualStudio.fs.9.0 /s
+  - reg query HKCR\.fsx /s
+  - reg query HKCR\VisualStudio.fsx.9.0 /s
+
   - python -m pip install pytest pytest-timeout .
 
   - reg query HKCR\AnalysisServices.BIMFile /s
   - reg query HKCR\AnalysisServices.BISMProject /s
-  - reg query HKCR\.fs /s
-  - reg query HKCR\VisualStudio.fs.9.0 /s
 
 build: false  # Not a C# project, build stuff at the test step instead.
 

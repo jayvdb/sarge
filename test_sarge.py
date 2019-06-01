@@ -718,6 +718,26 @@ class SargeTest(unittest.TestCase):
             # This might be false on case sensitive file systems
             self.assertTrue(os.path.exists('.\\hellobat.CMD'))
 
+        def test_find_command_fsx(self):
+            if '.FSX' not in os.environ.get('PATHEXT', '').split(os.path.pathsep):
+                raise unittest.SkipTest('.fsx not in PATHEXT or not registered')
+            with open('hellofs.fsx', 'w') as f:
+                f.write('printfn "%s" "Hello world!"')
+            cmd = find_command('.\\hellofs.fsx')
+            self.assertEqual(cmd, (None, 'hellofs.fsx'))
+            cmd = find_command('hellofs')
+            self.assertEqual(cmd, (None, 'hellofs.fsx'))
+
+        def test_run_found_command_fsx(self):
+            if '.FSX' not in os.environ.get('PATHEXT', '').split(os.path.pathsep):
+                raise unittest.SkipTest('.fsx not in PATHEXT or not registered')
+            with open('hellofs.fsx', 'w') as f:
+                f.write('printfn "%s" "Hello world!"')
+            cmd = find_command('.\\hellofs.fsx')
+
+            p = capture_stdout('hellofs')
+            self.assertEqual(p.stdout.text.rstrip(), 'Hello, world!')
+
         def _test_which_python(self):
             with open('hellopy.py', 'w') as f:
                 f.write('print("Hello, world!")')
