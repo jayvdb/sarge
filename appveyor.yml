@@ -112,8 +112,7 @@ build: false  # Not a C# project, build stuff at the test step instead.
 
 test_script:
   - 'python -m pytest -vv --error-for-skips --timeout=10 test_sarge.py
-     -k "not SargeWindowsTest and
-         not test_pipeline_no_input_pipe_stderr and
+     -k "not test_pipeline_no_input_pipe_stderr and
          not test_pipeline_no_input_redirect_stderr and
          not test_pipeline_no_input_stderr and
          not test_quote_with_shell
